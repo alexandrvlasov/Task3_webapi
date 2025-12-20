@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 import asyncio
+from datetime import datetime
 
 from db import init_db, get_db
 from models import Currency, CurrencyHistory
@@ -10,6 +11,7 @@ from schemas import CurrencyCreate, CurrencyRead, CurrencyUpdate, CurrencyHistor
 from currency_fetcher import start_background_fetcher, run_fetcher_once
 from nats_listener import start_nats_listener
 from ws_manager import ConnectionManager
+from nats_manager import nats_manager
 
 app = FastAPI(
     title="Currency Rates API",
@@ -96,6 +98,18 @@ async def create_currency(payload: CurrencyCreate, db: AsyncSession = Depends(ge
     db.add(currency)
     await db.commit()
     await db.refresh(currency)
+
+    await nats_manager.publish_json(
+        "currency.new",
+        {
+            "code": currency.code,
+            "name": currency.name,
+            "value": currency.value,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+    print(f"Published to NATS: currency.new for {currency.code}")
+
     return currency
 
 
@@ -115,6 +129,21 @@ async def update_currency(currency_code: str, payload: CurrencyUpdate, db: Async
 
     await db.commit()
     await db.refresh(currency)
+
+    if "value" in update_data and update_data["value"] != currency.value:
+        await nats_manager.publish_json(
+            "currency.updated",
+            {
+                "code": currency.code,
+                "name": currency.name,
+                "old_value": currency.previous,
+                "new_value": currency.value,
+                "change": currency.value - currency.previous,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+        print(f"Published to NATS: currency.updated for {currency.code}")
+
     return currency
 
 
@@ -128,6 +157,16 @@ async def delete_currency(currency_code: str, db: AsyncSession = Depends(get_db)
 
     await db.delete(currency)
     await db.commit()
+
+    await nats_manager.publish_json(
+        "currency.deleted",
+        {
+            "code": currency.code,
+            "name": currency.name,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+    print(f"Published to NATS: currency.deleted for {currency.code}")
 
 
 @app.get("/history/{currency_id}", response_model=list[CurrencyHistoryRead])
