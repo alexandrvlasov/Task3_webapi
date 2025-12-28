@@ -1,9 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles  # Добавьте эту строку
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 import asyncio
 from datetime import datetime
+import os
 
 from db import init_db, get_db
 from models import Currency, CurrencyHistory
@@ -46,27 +48,6 @@ async def on_startup():
     asyncio.create_task(start_nats_listener(manager))
     asyncio.create_task(start_background_fetcher())
     print("Application started")
-
-
-@app.get("/")
-async def root():
-    return {
-        "message": "Currency Rates API",
-        "endpoints": {
-            "REST API": {
-                "GET /currencies": "List all currencies",
-                "GET /currencies/{code}": "Get currency by code",
-                "POST /currencies": "Create currency",
-                "PATCH /currencies/{code}": "Update currency",
-                "DELETE /currencies/{code}": "Delete currency",
-                "GET /history/{currency_id}": "Get currency history",
-                "POST /tasks/run": "Force update currencies"
-            },
-            "WebSocket": {
-                "WS /ws/currencies": "Real-time notifications"
-            }
-        }
-    }
 
 
 @app.get("/currencies", response_model=list[CurrencyRead])
