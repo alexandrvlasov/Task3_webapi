@@ -48,7 +48,7 @@ async def run_fetcher_once(db: AsyncSession):
             )
             continue
 
-        if existing.value != item.value:
+        if True:
             history = CurrencyHistory(
                 currency_id=existing.id,
                 value=existing.value,
