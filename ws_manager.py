@@ -18,11 +18,6 @@ class ConnectionManager:
                 await self.disconnect(ws)
 
     async def handle(self, data, websocket: WebSocket):
-        if data == "ping":
-            await websocket.send_text("pong")
-        elif data == "get_currencies":
-            await websocket.send_json({"type": "info", "message": "Use REST API for currencies"})
-        else:
             await self.broadcast({"type": "echo", "message": data})
 
     async def disconnect(self, websocket: WebSocket):
