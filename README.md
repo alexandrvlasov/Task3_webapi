@@ -12,3 +12,12 @@
 ### 1. Установите зависимости:
 ```bash
 pip install -r requirements.txt
+```
+### 2. Запустите NATS сервер:
+```bash
+nats-server -m 8222
+```
+### 3. Запустите приложение:
+```bash
+uvicorn main:app --reload --port 8000
+```
